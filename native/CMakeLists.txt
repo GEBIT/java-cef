@@ -376,6 +376,15 @@ if(OS_MAC)
     # Add the Helper as a dependency of the main executable target.
     add_dependencies(${JCEF_TARGET} "${_helper_target}")
 
+    # GEBIT Customization: modify dyld path to load framework relative to jcef_helper
+    # location that is anticipated in later jcef bundle packaging situation
+    add_custom_command(
+      TARGET ${_helper_target}
+      POST_BUILD
+      COMMAND install_name_tool -change "@rpath/Frameworks/Chromium Embedded Framework.framework/Chromium Embedded Framework" "@executable_path/../../../Chromium Embedded Framework.framework/Chromium Embedded Framework" "${CEF_TARGET_OUT_DIR}/${_helper_output_name}.app/Contents/MacOS/${_helper_output_name}"
+      VERBATIM
+    )
+
     # Copy the Helper app bundle into the Frameworks directory.
     add_custom_command(
       TARGET ${JCEF_TARGET}
