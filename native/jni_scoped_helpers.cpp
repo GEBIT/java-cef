@@ -34,15 +34,6 @@ jint GetJNIEnv(JNIEnv** env, bool* mustDetach) {
   return result;
 }
 
-// Detaches the current thread from the VM. Should only be called if
-// |mustDetach| was set to true by GetJNIEnv.
-void DetachJNIEnv() {
-  JavaVM* jvm = GetJVM();
-  if (jvm) {
-    jvm->DetachCurrentThread();
-  }
-}
-
 // Using a simple cache to store global refs to loaded classes, since we
 // need to load the same classes over and over, which should neither change
 // on the JVM side nor be GCed...
@@ -239,9 +230,6 @@ ScopedJNIEnv::~ScopedJNIEnv() {
     } else {
       jenv_->PopLocalFrame(nullptr);
     }
-  }
-  if (should_detach_) {
-    DetachJNIEnv();
   }
 }
 
