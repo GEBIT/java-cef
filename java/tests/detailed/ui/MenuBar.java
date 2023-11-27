@@ -4,10 +4,9 @@
 
 package tests.detailed.ui;
 
-import org.cef.CefApp;
-import org.cef.CefClient;
 import org.cef.OS;
 import org.cef.browser.CefBrowser;
+import org.cef.browser.CefDevToolsClient;
 import org.cef.callback.CefPdfPrintCallback;
 import org.cef.callback.CefRunFileDialogCallback;
 import org.cef.callback.CefStringVisitor;
@@ -21,12 +20,10 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.Frame;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -40,10 +37,10 @@ import java.util.concurrent.TimeUnit;
 
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JLayeredPane;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
@@ -86,6 +83,7 @@ public class MenuBar extends JMenuBar {
     private final DownloadDialog downloadDialog_;
     private final CefCookieManager cookieManager_;
     private boolean reparentPending_ = false;
+    private CefDevToolsClient devToolsClient_;
 
     public MenuBar(MainFrame owner, CefBrowser browser, ControlPanel control_pane,
             DownloadDialog downloadDialog, CefCookieManager cookieManager) {
@@ -382,6 +380,44 @@ public class MenuBar extends JMenuBar {
         });
         testMenu.add(showDevTools);
 
+        JMenu devToolsProtocolMenu = new JMenu("DevTools Protocol");
+        JMenuItem autoDarkMode = devToolsProtocolMenu.add(new JCheckBoxMenuItem("Auto Dark Mode"));
+        autoDarkMode.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Toggle the auto dark mode override
+                String params = String.format("{ \"enabled\": %s }", autoDarkMode.isSelected());
+                CompletableFuture<String> future = getDevToolsClient().executeDevToolsMethod(
+                        "Emulation.setAutoDarkModeOverride", params);
+                logResult(future);
+            }
+        });
+        JMenuItem checkContrast = devToolsProtocolMenu.add(new JMenuItem("Check Contrast"));
+        checkContrast.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Check contrast, which usually triggers a series of Audits.issueAdded events
+                CompletableFuture<String> future =
+                        getDevToolsClient().executeDevToolsMethod("Audits.checkContrast");
+                logResult(future);
+            }
+        });
+        JMenuItem enableCSS = devToolsProtocolMenu.add(new JMenuItem("Enable CSS Agent"));
+        enableCSS.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Enable the CSS agent, which usually triggers a series of CSS.styleSheetAdded
+                // events. We can only enable the CSS agent if the DOM agent is enabled first, so we
+                // need to chain the two commands.
+                CefDevToolsClient client = getDevToolsClient();
+                CompletableFuture<String> future =
+                        client.executeDevToolsMethod("DOM.enable")
+                                .thenCompose(unused -> client.executeDevToolsMethod("CSS.enable"));
+                logResult(future);
+            }
+        });
+        testMenu.add(devToolsProtocolMenu);
+
         JMenuItem testURLRequest = new JMenuItem("URL Request");
         testURLRequest.addActionListener(new ActionListener() {
             @Override
@@ -547,6 +583,24 @@ public class MenuBar extends JMenuBar {
         frame.add(label);
         frame.setVisible(true);
         frame.pack();
+    }
+
+    private CefDevToolsClient getDevToolsClient() {
+        if (devToolsClient_ == null) {
+            devToolsClient_ = browser_.getDevToolsClient();
+            devToolsClient_.addEventListener(
+                    (method, json) -> System.out.println(method + ": " + json));
+        }
+        return devToolsClient_;
+    }
+
+    private void logResult(CompletableFuture<?> future) {
+        try {
+            // Block until the future is done or times out, and log the result
+            System.out.println("Future result: " + future.get(3, TimeUnit.SECONDS));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void addBookmarkSeparator() {
