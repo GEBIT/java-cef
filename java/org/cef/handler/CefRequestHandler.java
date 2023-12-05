@@ -7,8 +7,11 @@ package org.cef.handler;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
 import org.cef.callback.CefAuthCallback;
+import org.cef.callback.CefAuthenticatorRequestCallback;
 import org.cef.callback.CefCallback;
+import org.cef.handler.CefAuthenticatorResultHandler;
 import org.cef.misc.BoolRef;
+import org.cef.misc.CefCollectPinOptions;
 import org.cef.network.CefRequest;
 import org.cef.network.CefURLRequest;
 
@@ -104,6 +107,38 @@ public interface CefRequestHandler {
      */
     boolean getAuthCredentials(CefBrowser browser, String origin_url, boolean isProxy, String host,
             int port, String realm, String scheme, CefAuthCallback callback);
+
+    /**
+     * Called when the browser needs PIN input for a Webauthn authentication.
+     * <p>
+     * This is called first in order to determine whether PIN input is even
+     * supported by the application. Return true on that invocation to signal that PIN input
+     * is supported, false if not (authentication might still be successful
+     * if the auth request does not mandate PIN entry). If PIN input is supported AND the auth
+     * request either prefers or mandates PIN input, a subsequent invocation of getAuthenticatorPin
+     * is done.
+     *
+     * @param browser The corresponding browser.
+     * @return True if supported, false if not
+     */
+    boolean getAuthenticatorPinSupported(CefBrowser browser);
+
+    /**
+     * Called when the browser needs PIN input for a Webauthn authentication.
+     * <p>
+     * This is the second step after getAuthenticatorPinSupported signaled that PIN entry is
+     * supported. This step gathers the actual PIN from the user and returns it via the callback.
+     * Return false to abort PIN input, or true to accept the request.
+     *
+     * @param browser The corresponding browser.
+     * @param options Additional information about the PIN collection reasons.
+     * @param callback Call CefAuthenticatorRequestCallback.Continue() when the PIN is
+     *         available.
+     * @return an optional result handler to be notified about success/failure of the entire
+     *         authentication process
+     */
+    CefAuthenticatorResultHandler getAuthenticatorPin(CefBrowser browser,
+            CefCollectPinOptions options, CefAuthenticatorRequestCallback callback);
 
     /**
      * Called on the UI thread to handle requests for URLs with an invalid SSL certificate. If

@@ -6,6 +6,7 @@ package org.cef;
 
 import org.cef.browser.*;
 import org.cef.callback.CefAuthCallback;
+import org.cef.callback.CefAuthenticatorRequestCallback;
 import org.cef.callback.CefBeforeDownloadCallback;
 import org.cef.callback.CefCallback;
 import org.cef.callback.CefContextMenuParams;
@@ -17,6 +18,7 @@ import org.cef.callback.CefJSDialogCallback;
 import org.cef.callback.CefMenuModel;
 import org.cef.callback.CefPrintDialogCallback;
 import org.cef.callback.CefPrintJobCallback;
+import org.cef.handler.CefAuthenticatorResultHandler;
 import org.cef.handler.CefClientHandler;
 import org.cef.handler.CefContextMenuHandler;
 import org.cef.handler.CefDialogHandler;
@@ -36,6 +38,7 @@ import org.cef.handler.CefResourceRequestHandler;
 import org.cef.handler.CefScreenInfo;
 import org.cef.handler.CefWindowHandler;
 import org.cef.misc.BoolRef;
+import org.cef.misc.CefCollectPinOptions;
 import org.cef.misc.CefPrintSettings;
 import org.cef.misc.StringRef;
 import org.cef.network.CefRequest;
@@ -854,6 +857,21 @@ public class CefClient extends CefClientHandler
             return requestHandler_.getAuthCredentials(
                     browser, origin_url, isProxy, host, port, realm, scheme, callback);
         return false;
+    }
+
+    @Override
+    public boolean getAuthenticatorPinSupported(CefBrowser browser) {
+        if (requestHandler_ != null && browser != null)
+            return requestHandler_.getAuthenticatorPinSupported(browser);
+        return false;
+    }
+
+    @Override
+    public CefAuthenticatorResultHandler getAuthenticatorPin(CefBrowser browser,
+            CefCollectPinOptions options, CefAuthenticatorRequestCallback callback) {
+        if (requestHandler_ != null && browser != null)
+            return requestHandler_.getAuthenticatorPin(browser, options, callback);
+        return null;
     }
 
     @Override
