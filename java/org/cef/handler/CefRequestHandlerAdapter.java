@@ -7,9 +7,12 @@ package org.cef.handler;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
 import org.cef.callback.CefAuthCallback;
+import org.cef.callback.CefAuthenticatorRequestCallback;
 import org.cef.callback.CefCallback;
+import org.cef.handler.CefAuthenticatorResultHandler;
 import org.cef.handler.CefLoadHandler.ErrorCode;
 import org.cef.misc.BoolRef;
+import org.cef.misc.CefCollectPinOptions;
 import org.cef.network.CefRequest;
 import org.cef.network.CefURLRequest;
 
@@ -42,6 +45,17 @@ public abstract class CefRequestHandlerAdapter implements CefRequestHandler {
     public boolean getAuthCredentials(CefBrowser browser, String origin_url, boolean isProxy,
             String host, int port, String realm, String scheme, CefAuthCallback callback) {
         return false;
+    }
+
+    @Override
+    public boolean getAuthenticatorPinSupported(CefBrowser browser) {
+        return false;
+    }
+
+    @Override
+    public CefAuthenticatorResultHandler getAuthenticatorPin(CefBrowser browser,
+            CefCollectPinOptions options, CefAuthenticatorRequestCallback callback) {
+        return null;
     }
 
     @Override
