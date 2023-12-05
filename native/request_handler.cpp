@@ -4,6 +4,7 @@
 
 #include "request_handler.h"
 
+#include "authenticator_result_handler.h"
 #include "client_handler.h"
 #include "jni_util.h"
 #include "resource_handler.h"
@@ -141,6 +142,87 @@ bool RequestHandler::GetAuthCredentials(CefRefPtr<CefBrowser> browser,
   }
 
   return (jresult != JNI_FALSE);
+}
+
+bool RequestHandler::GetAuthenticatorPinSupported(
+    CefRefPtr<CefBrowser> browser) {
+  ScopedJNIEnv env;
+  if (!env)
+    return false;
+
+  ScopedJNIBrowser jbrowser(env, browser);
+  jboolean jresult = JNI_FALSE;
+
+  JNI_CALL_METHOD(env, handle_, "getAuthenticatorPinSupported",
+                  "(Lorg/cef/browser/CefBrowser;)Z", Boolean, jresult,
+                  jbrowser.get());
+
+  return (jresult != JNI_FALSE);
+}
+
+CefRefPtr<CefAuthenticatorResultHandler> RequestHandler::GetAuthenticatorPin(
+    CefRefPtr<CefBrowser> browser,
+    const CefCollectPinOptions& options,
+    CefRefPtr<CefAuthenticatorRequestCallback> callback) {
+  ScopedJNIEnv env;
+  if (!env)
+    return nullptr;
+
+  ScopedJNIBrowser jbrowser(env, browser);
+
+  ScopedJNIObjectResult jreason(env);
+  switch (options.reason) {
+    JNI_CASE(env, "org/cef/misc/CefCollectPinOptions$PinEntryReason",
+             CEF_PIN_ENTRY_REASON_SET, jreason);
+    JNI_CASE(env, "org/cef/misc/CefCollectPinOptions$PinEntryReason",
+             CEF_PIN_ENTRY_REASON_CHANGE, jreason);
+    default:
+      JNI_CASE(env, "org/cef/misc/CefCollectPinOptions$PinEntryReason",
+               CEF_PIN_ENTRY_REASON_CHALLENGE, jreason);
+  }
+
+  ScopedJNIObjectResult jerror(env);
+  switch (options.error) {
+    JNI_CASE(env, "org/cef/misc/CefCollectPinOptions$PinEntryError",
+             CEF_PIN_ENTRY_ERROR_INTERNAL_UV_LOCKED, jerror);
+    JNI_CASE(env, "org/cef/misc/CefCollectPinOptions$PinEntryError",
+             CEF_PIN_ENTRY_ERROR_WRONG_PIN, jerror);
+    JNI_CASE(env, "org/cef/misc/CefCollectPinOptions$PinEntryError",
+             CEF_PIN_ENTRY_ERROR_TOO_SHORT, jerror);
+    JNI_CASE(env, "org/cef/misc/CefCollectPinOptions$PinEntryError",
+             CEF_PIN_ENTRY_ERROR_INVALID_CHARACTERS, jerror);
+    JNI_CASE(env, "org/cef/misc/CefCollectPinOptions$PinEntryError",
+             CEF_PIN_ENTRY_ERROR_SAME_AS_CURRENT_PIN, jerror);
+    default:
+      JNI_CASE(env, "org/cef/misc/CefCollectPinOptions$PinEntryError",
+               CEF_PIN_ENTRY_ERROR_NO_ERROR, jerror);
+  }
+
+  ScopedJNIObjectLocal joptions(
+      env,
+      NewJNIObject(env, "org/cef/misc/CefCollectPinOptions",
+                   "(Lorg/cef/misc/CefCollectPinOptions$PinEntryReason;Lorg/"
+                   "cef/misc/CefCollectPinOptions$PinEntryError;JI)V",
+                   jreason.get(), jerror.get(), options.min_pin_length,
+                   options.attempts));
+  if (!joptions) {
+    return nullptr;
+  }
+
+  ScopedJNIAuthenticatorRequestCallback jcallback(env, callback);
+  ScopedJNIObjectResult jresult(env);
+
+  JNI_CALL_METHOD(env, handle_, "getAuthenticatorPin",
+                  "(Lorg/cef/browser/CefBrowser;"
+                  "Lorg/cef/misc/CefCollectPinOptions;"
+                  "Lorg/cef/callback/CefAuthenticatorRequestCallback;)Lorg/cef/"
+                  "handler/CefAuthenticatorResultHandler;",
+                  Object, jresult, jbrowser.get(), joptions.Release(),
+                  jcallback.get());
+
+  if (jresult)
+    return new AuthenticatorResultHandler(env, jresult);
+  return nullptr;
 }
 
 bool RequestHandler::OnCertificateError(CefRefPtr<CefBrowser> browser,

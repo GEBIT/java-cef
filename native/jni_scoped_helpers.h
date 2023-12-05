@@ -10,6 +10,7 @@
 #include <string>
 
 #include "include/cef_auth_callback.h"
+#include "include/cef_authenticator_request_callback.h"
 #include "include/cef_browser.h"
 #include "include/cef_drag_data.h"
 #include "include/cef_frame.h"
@@ -746,6 +747,16 @@ class ScopedJNIAuthCallback : public ScopedJNIObject<CefAuthCallback> {
  public:
   // If |obj| is nullptr the SetHandle method should be used.
   ScopedJNIAuthCallback(JNIEnv* env, CefRefPtr<CefAuthCallback> obj = nullptr);
+};
+
+// JNI CefAuthCallback object.
+class ScopedJNIAuthenticatorRequestCallback
+    : public ScopedJNIObject<CefAuthenticatorRequestCallback> {
+ public:
+  // If |obj| is nullptr the SetHandle method should be used.
+  ScopedJNIAuthenticatorRequestCallback(
+      JNIEnv* env,
+      CefRefPtr<CefAuthenticatorRequestCallback> obj = nullptr);
 };
 
 // JNI CefDragData object.

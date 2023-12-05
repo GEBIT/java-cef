@@ -7,13 +7,16 @@ package tests.detailed.handler;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
 import org.cef.callback.CefAuthCallback;
+import org.cef.callback.CefAuthenticatorRequestCallback;
 import org.cef.callback.CefCallback;
+import org.cef.handler.CefAuthenticatorResultHandler;
 import org.cef.handler.CefLoadHandler.ErrorCode;
 import org.cef.handler.CefRequestHandler;
 import org.cef.handler.CefResourceHandler;
 import org.cef.handler.CefResourceRequestHandler;
 import org.cef.handler.CefResourceRequestHandlerAdapter;
 import org.cef.misc.BoolRef;
+import org.cef.misc.CefCollectPinOptions;
 import org.cef.network.CefPostData;
 import org.cef.network.CefPostDataElement;
 import org.cef.network.CefRequest;
@@ -25,6 +28,7 @@ import java.util.Vector;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
+import tests.detailed.dialog.AuthenticatorPinDialog;
 import tests.detailed.dialog.CertErrorDialog;
 import tests.detailed.dialog.PasswordDialog;
 
@@ -151,6 +155,37 @@ public class RequestHandler extends CefResourceRequestHandlerAdapter implements 
             String host, int port, String realm, String scheme, CefAuthCallback callback) {
         SwingUtilities.invokeLater(new PasswordDialog(owner_, callback));
         return true;
+    }
+
+    int count = 0;
+
+    @Override
+    public boolean getAuthenticatorPinSupported(CefBrowser browser) {
+        return true;
+    }
+
+    @Override
+    public CefAuthenticatorResultHandler getAuthenticatorPin(CefBrowser browser,
+            CefCollectPinOptions options, CefAuthenticatorRequestCallback callback) {
+        AuthenticatorPinDialog dialog = new AuthenticatorPinDialog(owner_, options, callback);
+        SwingUtilities.invokeLater(dialog);
+        return new CefAuthenticatorResultHandler() {
+            @Override
+            public void onFailure(AuthenticatorFailureReason reason) {
+                System.out.println("Webauthn failure: " + reason);
+                dialog.hide();
+            }
+
+            @Override
+            public void onSuccess() {
+                System.out.println("Webauthn success!");
+            }
+
+            @Override
+            public void onFinishCollectToken() {
+                System.out.println("Please touch the token!");
+            }
+        };
     }
 
     @Override
