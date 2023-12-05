@@ -12,6 +12,8 @@ set(JCEF_SRCS
   CefApp.h
   CefAuthCallback_N.cpp
   CefAuthCallback_N.h
+  CefAuthenticatorRequestCallback_N.cpp
+  CefAuthenticatorRequestCallback_N.h
   CefBeforeDownloadCallback_N.cpp
   CefBeforeDownloadCallback_N.h
   CefBrowser_N.cpp
@@ -68,6 +70,8 @@ set(JCEF_SRCS
   CefSchemeRegistrar_N.h
   CefURLRequest_N.cpp
   CefURLRequest_N.h
+  authenticator_result_handler.cpp
+  authenticator_result_handler.h
   browser_process_handler.cpp
   browser_process_handler.h
   client_app.cpp

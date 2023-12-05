@@ -368,6 +368,15 @@ ScopedJNIAuthCallback::ScopedJNIAuthCallback(JNIEnv* env,
                                        "org/cef/callback/CefAuthCallback_N",
                                        "CefAuthCallback") {}
 
+ScopedJNIAuthenticatorRequestCallback::ScopedJNIAuthenticatorRequestCallback(
+    JNIEnv* env,
+    CefRefPtr<CefAuthenticatorRequestCallback> obj)
+    : ScopedJNIObject<CefAuthenticatorRequestCallback>(
+          env,
+          obj,
+          "org/cef/callback/CefAuthenticatorRequestCallback_N",
+          "CefAuthenticatorRequestCallback") {}
+
 ScopedJNIDragData::ScopedJNIDragData(JNIEnv* env, CefRefPtr<CefDragData> obj)
     : ScopedJNIObject<CefDragData>(env,
                                    obj,
