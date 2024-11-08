@@ -197,6 +197,50 @@ jobject NewJNIURLRequestStatus(
   return result.Release();
 }
 
+jobject NewJNIObjectFromCefValue(JNIEnv* env, const CefRefPtr<CefValue> value) {
+  switch (value->GetType()) {
+    case VTYPE_NULL:
+      return nullptr;
+    case VTYPE_BOOL:
+      return ScopedJNIBoolean(env, value->GetBool()).Release();
+    case VTYPE_INT:
+      return ScopedJNIInteger(env, value->GetInt()).Release();
+    case VTYPE_DOUBLE:
+      return ScopedJNIDouble(env, value->GetDouble()).Release();
+    case VTYPE_STRING:
+      return ScopedJNIString(env, value->GetString()).Release();
+    case VTYPE_BINARY:
+      return ScopedJNIByteBuffer(env, value->GetBinary()->GetRawData(),
+                                 value->GetBinary()->GetSize())
+          .Release();
+    case VTYPE_DICTIONARY: {
+      ScopedJNIHashMap jmap(env);
+      CefRefPtr<CefDictionaryValue> dict = value->GetDictionary();
+      CefDictionaryValue::KeyList keys;
+      dict->GetKeys(keys);
+      for (const CefString& key : keys) {
+        ScopedJNIString jkey(env, key);
+        jobject jvalue = NewJNIObjectFromCefValue(env, dict->GetValue(key));
+        jmap.Put(jkey.Release(), jvalue);
+      }
+      return jmap.Release();
+    }
+    case VTYPE_LIST: {
+      ScopedJNIArrayList jlist(env);
+      CefRefPtr<CefListValue> list = value->GetList();
+      const size_t size = list->GetSize();
+      for (size_t i = 0; i < size; ++i) {
+        jobject jvalue = NewJNIObjectFromCefValue(env, list->GetValue(i));
+        jlist.Add(jvalue);
+      }
+      return jlist.Release();
+    }
+    default:
+      NOTREACHED();
+      return nullptr;
+  }
+}
+
 jobject GetJNIBrowser(JNIEnv* env, CefRefPtr<CefBrowser> browser) {
   if (!browser)
     return nullptr;
@@ -206,6 +250,31 @@ jobject GetJNIBrowser(JNIEnv* env, CefRefPtr<CefBrowser> browser) {
 }
 
 }  // namespace
+
+CefRefPtr<CefValue> GetCefValueFromJNIObject(JNIEnv* env, jobject obj) {
+  if (!obj)
+    return nullptr;
+
+  if (env->IsInstanceOf(obj, ScopedJNIClass(env, "java/lang/Boolean"))) {
+    return ScopedJNIBoolean(env, GetJNIBoolean(env, obj));
+  } else if (env->IsInstanceOf(obj, ScopedJNIClass(env, "java/lang/Integer"))) {
+    return ScopedJNIInteger(env, GetJNIInteger(env, obj));
+  } else if (env->IsInstanceOf(obj, ScopedJNIClass(env, "java/lang/Double"))) {
+    return ScopedJNIDouble(env, GetJNIDouble(env, obj));
+  } else if (env->IsInstanceOf(obj, ScopedJNIClass(env, "java/lang/String"))) {
+    return ScopedJNIString(env, static_cast<jstring>(obj));
+  } else if (env->IsInstanceOf(obj,
+                               ScopedJNIClass(env, "java/nio/ByteBuffer"))) {
+    return ScopedJNIByteBuffer(env, GetJNIByteBufferData(env, obj),
+                               GetJNIByteBufferLength(env, obj));
+  } else if (env->IsInstanceOf(obj, ScopedJNIClass(env, "java/util/Map"))) {
+    return ScopedJNIHashMap(env, obj);
+  } else if (env->IsInstanceOf(obj, ScopedJNIClass(env, "java/util/List"))) {
+    return ScopedJNIArrayList(env, obj);
+  } else {
+    return nullptr;
+  }
+}
 
 // static
 const int ScopedJNIEnv::kDefaultLocalCapacity = 1024;
@@ -275,6 +344,10 @@ ScopedJNIObjectLocal::ScopedJNIObjectLocal(JNIEnv* env, jobject handle)
 ScopedJNIObjectLocal::ScopedJNIObjectLocal(JNIEnv* env, const char* class_name)
     : ScopedJNIObjectLocal(env, NewJNIObject(env, class_name)) {}
 
+ScopedJNIObjectLocal::ScopedJNIObjectLocal(JNIEnv* env,
+                                           const CefRefPtr<CefValue> value)
+    : ScopedJNIObjectLocal(env, NewJNIObjectFromCefValue(env, value)) {}
+
 ScopedJNIObjectResult::ScopedJNIObjectResult(JNIEnv* env)
     : ScopedJNIBase<jobject>(env) {}
 
@@ -290,6 +363,190 @@ ScopedJNIString::ScopedJNIString(JNIEnv* env, const std::string& str)
     : ScopedJNIBase<jstring>(env) {
   jhandle_ = NewJNIString(env, str);
   DCHECK(jhandle_);
+}
+
+ScopedJNIString::ScopedJNIString(JNIEnv* env, const jstring& str)
+    : ScopedJNIBase<jstring>(env) {
+  jhandle_ = str;
+}
+
+ScopedJNIString::operator CefRefPtr<CefValue>() const {
+  CefRefPtr<CefValue> value = CefValue::Create();
+  value->SetString(GetJNIString(env_, jhandle_));
+  return value;
+}
+
+ScopedJNIBoolean::ScopedJNIBoolean(JNIEnv* env, const bool value)
+    : ScopedJNIBase<jobject>(env) {
+  jhandle_ = NewJNIBoolean(env, value);
+  DCHECK(jhandle_);
+}
+
+ScopedJNIBoolean::ScopedJNIBoolean(JNIEnv* env, const jobject& value)
+    : ScopedJNIBase<jobject>(env) {
+  jhandle_ = value;
+}
+
+ScopedJNIBoolean::operator CefRefPtr<CefValue>() const {
+  CefRefPtr<CefValue> value = CefValue::Create();
+  value->SetBool(GetJNIBoolean(env_, jhandle_));
+  return value;
+}
+
+ScopedJNIInteger::ScopedJNIInteger(JNIEnv* env, const int value)
+    : ScopedJNIBase<jobject>(env) {
+  jhandle_ = NewJNIInteger(env, value);
+  DCHECK(jhandle_);
+}
+
+ScopedJNIInteger::ScopedJNIInteger(JNIEnv* env, const jobject& value)
+    : ScopedJNIBase<jobject>(env) {
+  jhandle_ = value;
+}
+
+ScopedJNIInteger::operator CefRefPtr<CefValue>() const {
+  CefRefPtr<CefValue> value = CefValue::Create();
+  value->SetInt(GetJNIInteger(env_, jhandle_));
+  return value;
+}
+
+ScopedJNIDouble::ScopedJNIDouble(JNIEnv* env, const double value)
+    : ScopedJNIBase<jobject>(env) {
+  jhandle_ = NewJNIDouble(env, value);
+  DCHECK(jhandle_);
+}
+
+ScopedJNIDouble::ScopedJNIDouble(JNIEnv* env, const jobject& value)
+    : ScopedJNIBase<jobject>(env) {
+  jhandle_ = value;
+}
+
+ScopedJNIDouble::operator CefRefPtr<CefValue>() const {
+  CefRefPtr<CefValue> value = CefValue::Create();
+  value->SetDouble(GetJNIDouble(env_, jhandle_));
+  return value;
+}
+
+ScopedJNIByteBuffer::ScopedJNIByteBuffer(JNIEnv* env,
+                                         const void* data,
+                                         size_t size)
+    : ScopedJNIBase<jobject>(env) {
+  jhandle_ = NewJNIByteBuffer(env, data, size);
+  DCHECK(jhandle_);
+}
+
+ScopedJNIByteBuffer::ScopedJNIByteBuffer(JNIEnv* env, const jobject& value)
+    : ScopedJNIBase<jobject>(env) {
+  jhandle_ = value;
+}
+
+ScopedJNIByteBuffer::operator CefRefPtr<CefValue>() const {
+  CefRefPtr<CefValue> value = CefValue::Create();
+  CefRefPtr<CefBinaryValue> binary =
+      CefBinaryValue::Create(GetJNIByteBufferData(env_, jhandle_),
+                             GetJNIByteBufferLength(env_, jhandle_));
+  value->SetBinary(binary);
+  return value;
+}
+
+ScopedJNIHashMap::ScopedJNIHashMap(JNIEnv* env) : ScopedJNIBase<jobject>(env) {
+  jhandle_ = NewJNIHashMap(env);
+  DCHECK(jhandle_);
+}
+
+ScopedJNIHashMap::ScopedJNIHashMap(JNIEnv* env, const jobject& value)
+    : ScopedJNIBase<jobject>(env) {
+  jhandle_ = value;
+}
+
+void ScopedJNIHashMap::Put(const jstring& key, const jobject& value) {
+  DCHECK(jhandle_);
+  JNI_CALL_VOID_METHOD(
+      env_, jhandle_, "put",
+      "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;", key, value);
+}
+
+ScopedJNIHashMap::operator CefRefPtr<CefValue>() const {
+  CefRefPtr<CefDictionaryValue> dict = CefDictionaryValue::Create();
+
+  ScopedJNIObjectResult entrySet(env_);
+  JNI_CALL_METHOD(env_, jhandle_, "entrySet", "()Ljava/util/Set;", Object,
+                  entrySet);
+
+  ScopedJNIObjectResult iterator(env_);
+  JNI_CALL_METHOD(env_, entrySet, "iterator", "()Ljava/util/Iterator;", Object,
+                  iterator);
+
+  jboolean hasNext = JNI_FALSE;
+  JNI_CALL_METHOD(env_, iterator, "hasNext", "()Z", Boolean, hasNext);
+
+  while (hasNext == JNI_TRUE) {
+    ScopedJNIObjectResult next(env_);
+    JNI_CALL_METHOD(env_, iterator, "next", "()Ljava/lang/Object;", Object,
+                    next);
+
+    ScopedJNIObjectResult entryKey(env_);
+    JNI_CALL_METHOD(env_, next, "getKey", "()Ljava/lang/Object;", Object,
+                    entryKey);
+    CefString key = GetJNIString(env_, static_cast<jstring>(entryKey.get()));
+
+    ScopedJNIObjectResult entryValue(env_);
+    JNI_CALL_METHOD(env_, next, "getValue", "()Ljava/lang/Object;", Object,
+                    entryValue);
+    jobject jvalue = entryValue.get();
+    CefRefPtr<CefValue> cef_value = GetCefValueFromJNIObject(env_, jvalue);
+    printf("setValue: %s", dict->SetValue(key, cef_value) ? "true" : "false");
+
+    JNI_CALL_METHOD(env_, iterator, "hasNext", "()Z", Boolean, hasNext);
+  }
+
+  CefRefPtr<CefValue> value = CefValue::Create();
+  printf("setDict: %s", value->SetDictionary(dict) ? "true" : "false");
+  fflush(stdout);
+  return value;
+}
+
+ScopedJNIArrayList::ScopedJNIArrayList(JNIEnv* env)
+    : ScopedJNIBase<jobject>(env) {
+  jhandle_ = NewJNIArrayList(env);
+  DCHECK(jhandle_);
+}
+
+ScopedJNIArrayList::ScopedJNIArrayList(JNIEnv* env, const jobject& value)
+    : ScopedJNIBase<jobject>(env) {
+  jhandle_ = value;
+}
+
+void ScopedJNIArrayList::Add(const jobject& value) {
+  DCHECK(jhandle_);
+  JNI_CALL_VOID_METHOD(env_, jhandle_, "add", "(Ljava/lang/Object;)Z", value);
+}
+
+ScopedJNIArrayList::operator CefRefPtr<CefValue>() const {
+  CefRefPtr<CefListValue> list = CefListValue::Create();
+
+  ScopedJNIObjectResult iterator(env_);
+  JNI_CALL_METHOD(env_, jhandle_, "iterator", "()Ljava/util/Iterator;", Object,
+                  iterator);
+
+  jboolean hasNext = JNI_FALSE;
+  JNI_CALL_METHOD(env_, iterator, "hasNext", "()Z", Boolean, hasNext);
+
+  long index = 0;
+  while (hasNext == JNI_TRUE) {
+    ScopedJNIObjectResult next(env_);
+    JNI_CALL_METHOD(env_, iterator, "next", "()Ljava/lang/Object;", Object,
+                    next);
+    jobject jvalue = next.get();
+    CefRefPtr<CefValue> cef_value = GetCefValueFromJNIObject(env_, jvalue);
+    list->SetValue(index, cef_value);
+    index++;
+    JNI_CALL_METHOD(env_, iterator, "hasNext", "()Z", Boolean, hasNext);
+  }
+
+  CefRefPtr<CefValue> value = CefValue::Create();
+  value->SetList(list);
+  return value;
 }
 
 ScopedJNIDate::ScopedJNIDate(JNIEnv* env, const CefBaseTime& time)

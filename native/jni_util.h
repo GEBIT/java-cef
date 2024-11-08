@@ -89,11 +89,25 @@ void SetJNIStringMultiMap(JNIEnv* env,
                           jobject jheaderMap,
                           const std::multimap<CefString, CefString>& vals);
 
+void* GetJNIByteBufferData(JNIEnv* env, jobject jbyteBuffer);
+size_t GetJNIByteBufferLength(JNIEnv* env, jobject jbyteBuffer);
+
 CefMessageRouterConfig GetJNIMessageRouterConfig(JNIEnv* env, jobject jConfig);
 
 // Create a new JNI error code.
 jobject NewJNIErrorCode(JNIEnv* env, cef_errorcode_t errorCode);
 cef_errorcode_t GetJNIErrorCode(JNIEnv* env, jobject jerrorCode);
+
+jobject NewJNIBoolean(JNIEnv* env, const bool value);
+jobject NewJNIInteger(JNIEnv* env, const int value);
+jobject NewJNIDouble(JNIEnv* env, const double value);
+jobject NewJNIByteBuffer(JNIEnv* env, const void* data, size_t size);
+jobject NewJNIHashMap(JNIEnv* env);
+jobject NewJNIArrayList(JNIEnv* env);
+
+jboolean GetJNIBoolean(JNIEnv* env, jobject jbool);
+jint GetJNIInteger(JNIEnv* env, jobject jint);
+jdouble GetJNIDouble(JNIEnv* env, jobject jdouble);
 
 bool GetJNIFieldObject(JNIEnv* env,
                        jclass cls,

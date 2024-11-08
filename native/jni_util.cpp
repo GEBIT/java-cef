@@ -280,6 +280,25 @@ void SetJNIStringMultiMap(JNIEnv* env,
   }
 }
 
+void* GetJNIByteBufferData(JNIEnv* env, jobject jbyteBuffer) {
+  if (!jbyteBuffer)
+    return nullptr;
+
+  void* data = nullptr;
+  jlong capacity = env->GetDirectBufferCapacity(jbyteBuffer);
+  if (capacity > 0) {
+    data = env->GetDirectBufferAddress(jbyteBuffer);
+  }
+  return data;
+}
+
+size_t GetJNIByteBufferLength(JNIEnv* env, jobject jbyteBuffer) {
+  if (!jbyteBuffer)
+    return 0;
+
+  return static_cast<size_t>(env->GetDirectBufferCapacity(jbyteBuffer));
+}
+
 CefMessageRouterConfig GetJNIMessageRouterConfig(JNIEnv* env, jobject jConfig) {
   CefMessageRouterConfig config;
 
@@ -744,6 +763,115 @@ jobject NewJNIErrorCode(JNIEnv* env, cef_errorcode_t errorCode) {
                ERR_DNS_REQUEST_CANCELLED, jerrorCode);
   }
   return jerrorCode.Release();
+}
+
+jobject NewJNIBoolean(JNIEnv* env, const bool value) {
+  ScopedJNIClass cls(env, "java/lang/Boolean");
+  if (!cls)
+    return nullptr;
+
+  jmethodID method =
+      env->GetStaticMethodID(cls, "valueOf", "(Z)Ljava/lang/Boolean;");
+  if (!method)
+    return nullptr;
+
+  return env->CallStaticObjectMethod(cls, method, value ? JNI_TRUE : JNI_FALSE);
+}
+
+jboolean GetJNIBoolean(JNIEnv* env, jobject obj) {
+  if (obj) {
+    jboolean value = JNI_FALSE;
+    JNI_CALL_METHOD(env, obj, "booleanValue", "()Z", Boolean, value);
+    return value;
+  }
+  return JNI_FALSE;
+}
+
+jobject NewJNIInteger(JNIEnv* env, const int value) {
+  ScopedJNIClass cls(env, "java/lang/Integer");
+  if (!cls)
+    return nullptr;
+
+  jmethodID method =
+      env->GetStaticMethodID(cls, "valueOf", "(I)Ljava/lang/Integer;");
+  if (!method)
+    return nullptr;
+
+  return env->CallStaticObjectMethod(cls, method, value);
+}
+
+jint GetJNIInteger(JNIEnv* env, jobject obj) {
+  if (obj) {
+    jint value = 0;
+    JNI_CALL_METHOD(env, obj, "intValue", "()I", Int, value);
+    return value;
+  }
+  return 0;
+}
+
+jobject NewJNIDouble(JNIEnv* env, const double value) {
+  ScopedJNIClass cls(env, "java/lang/Double");
+  if (!cls)
+    return nullptr;
+
+  jmethodID method =
+      env->GetStaticMethodID(cls, "valueOf", "(D)Ljava/lang/Double;");
+  if (!method)
+    return nullptr;
+
+  return env->CallStaticObjectMethod(cls, method, value);
+}
+
+jdouble GetJNIDouble(JNIEnv* env, jobject obj) {
+  if (obj) {
+    jdouble value = 0;
+    JNI_CALL_METHOD(env, obj, "doubleValue", "()D", Double, value);
+    return value;
+  }
+  return 0;
+}
+
+jobject NewJNIByteBuffer(JNIEnv* env, const void* data, size_t size) {
+  ScopedJNIClass cls(env, "java/nio/ByteBuffer");
+  if (!cls)
+    return nullptr;
+
+  jmethodID method =
+      env->GetStaticMethodID(cls, "wrap", "([B)Ljava/nio/ByteBuffer;");
+  if (!method)
+    return nullptr;
+
+  jbyteArray array = env->NewByteArray((jsize)size);
+  if (!array)
+    return nullptr;
+
+  env->SetByteArrayRegion(array, 0, (jsize)size,
+                          reinterpret_cast<const jbyte*>(data));
+  return env->CallStaticObjectMethod(cls, method, array);
+}
+
+jobject NewJNIHashMap(JNIEnv* env) {
+  ScopedJNIClass cls(env, "java/util/HashMap");
+  if (!cls)
+    return nullptr;
+
+  jmethodID method = env->GetMethodID(cls, "<init>", "()V");
+  if (!method)
+    return nullptr;
+
+  return env->NewObject(cls, method);
+}
+
+jobject NewJNIArrayList(JNIEnv* env) {
+  ScopedJNIClass cls(env, "java/util/ArrayList");
+  if (!cls)
+    return nullptr;
+
+  jmethodID method = env->GetMethodID(cls, "<init>", "()V");
+  if (!method)
+    return nullptr;
+
+  return env->NewObject(cls, method);
 }
 
 cef_errorcode_t GetJNIErrorCode(JNIEnv* env, jobject jerrorCode) {

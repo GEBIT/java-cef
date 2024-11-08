@@ -548,6 +548,9 @@ class ScopedJNIObjectLocal : public ScopedJNIBase<jobject> {
 
   // Create a new instance of the specified |class_name|.
   ScopedJNIObjectLocal(JNIEnv* env, const char* class_name);
+
+  // Create a new instance from a CefValue.
+  ScopedJNIObjectLocal(JNIEnv* env, const CefRefPtr<CefValue> value);
 };
 
 // Used for later assignment of a handle whose lifespan will then be managed.
@@ -679,6 +682,67 @@ class ScopedJNIClass : public ScopedJNIBase<jclass> {
 class ScopedJNIString : public ScopedJNIBase<jstring> {
  public:
   ScopedJNIString(JNIEnv* env, const std::string& str);
+  ScopedJNIString(JNIEnv* env, const jstring& str);
+
+  operator CefRefPtr<CefValue>() const;
+};
+
+// JNI boolean.
+class ScopedJNIBoolean : public ScopedJNIBase<jobject> {
+ public:
+  ScopedJNIBoolean(JNIEnv* env, const bool value);
+  ScopedJNIBoolean(JNIEnv* env, const jobject& value);
+
+  operator CefRefPtr<CefValue>() const;
+};
+
+// JNI integer.
+class ScopedJNIInteger : public ScopedJNIBase<jobject> {
+ public:
+  ScopedJNIInteger(JNIEnv* env, const int value);
+  ScopedJNIInteger(JNIEnv* env, const jobject& value);
+
+  operator CefRefPtr<CefValue>() const;
+};
+
+// JNI double.
+class ScopedJNIDouble : public ScopedJNIBase<jobject> {
+ public:
+  ScopedJNIDouble(JNIEnv* env, const double value);
+  ScopedJNIDouble(JNIEnv* env, const jobject& value);
+
+  operator CefRefPtr<CefValue>() const;
+};
+
+// JNI ByteBuffer.
+class ScopedJNIByteBuffer : public ScopedJNIBase<jobject> {
+ public:
+  ScopedJNIByteBuffer(JNIEnv* env, const void* data, size_t size);
+  ScopedJNIByteBuffer(JNIEnv* env, const jobject& value);
+
+  operator CefRefPtr<CefValue>() const;
+};
+
+// JNI HashMap.
+class ScopedJNIHashMap : public ScopedJNIBase<jobject> {
+ public:
+  ScopedJNIHashMap(JNIEnv* env);
+  ScopedJNIHashMap(JNIEnv* env, const jobject& value);
+
+  void Put(const jstring& key, const jobject& value);
+
+  operator CefRefPtr<CefValue>() const;
+};
+
+// JNI ArrayList.
+class ScopedJNIArrayList : public ScopedJNIBase<jobject> {
+ public:
+  ScopedJNIArrayList(JNIEnv* env);
+  ScopedJNIArrayList(JNIEnv* env, const jobject& value);
+
+  void Add(const jobject& value);
+
+  operator CefRefPtr<CefValue>() const;
 };
 
 // JNI date.
@@ -877,6 +941,8 @@ class ScopedJNIStringRef : public ScopedJNIBase<jobject> {
   // Implicit retrieval of the underlying value.
   operator CefString() const;
 };
+
+CefRefPtr<CefValue> GetCefValueFromJNIObject(JNIEnv* env, jobject obj);
 
 // Helper macros to call a method on the java side.
 #define JNI_CALL_METHOD(env, obj, method, sig, type, storeIn, ...)        \

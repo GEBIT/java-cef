@@ -56,6 +56,101 @@ Java_org_cef_browser_CefRequestContext_1N_N_1IsGlobal(JNIEnv* env,
   return context->IsGlobal() ? JNI_TRUE : JNI_FALSE;
 }
 
+JNIEXPORT jboolean JNICALL
+Java_org_cef_browser_CefRequestContext_1N_N_1HasPreference(JNIEnv* env,
+                                                           jobject obj,
+                                                           jstring jname) {
+  CefRefPtr<CefRequestContext> context =
+      GetCefFromJNIObject<CefRequestContext>(env, obj, "CefRequestContext");
+  if (!context.get())
+    return JNI_FALSE;
+
+  CefString name = GetJNIString(env, jname);
+  return context->HasPreference(name) ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jobject JNICALL
+Java_org_cef_browser_CefRequestContext_1N_N_1GetPreference(JNIEnv* env,
+                                                           jobject obj,
+                                                           jstring jname) {
+  CefRefPtr<CefRequestContext> context =
+      GetCefFromJNIObject<CefRequestContext>(env, obj, "CefRequestContext");
+  if (!context.get())
+    return nullptr;
+
+  CefString name = GetJNIString(env, jname);
+  CefRefPtr<CefValue> value = context->GetPreference(name);
+  if (!value)
+    return nullptr;
+
+  return ScopedJNIObjectLocal(env, value).Release();
+}
+
+JNIEXPORT jobject JNICALL
+Java_org_cef_browser_CefRequestContext_1N_N_1GetAllPreferences(
+    JNIEnv* env,
+    jobject obj,
+    jboolean includeDefaults) {
+  CefRefPtr<CefRequestContext> context =
+      GetCefFromJNIObject<CefRequestContext>(env, obj, "CefRequestContext");
+  if (!context.get())
+    return nullptr;
+
+  CefRefPtr<CefDictionaryValue> value =
+      context->GetAllPreferences(includeDefaults == JNI_TRUE);
+  if (!value)
+    return nullptr;
+
+  ScopedJNIHashMap jmap(env);
+  CefDictionaryValue::KeyList keys;
+  value->GetKeys(keys);
+  for (const CefString& key : keys) {
+    ScopedJNIString jkey(env, key);
+    ScopedJNIObjectLocal jvalue(env, value->GetValue(key));
+    jmap.Put(jkey.Release(), jvalue.Release());
+  }
+  return jmap.Release();
+}
+
+JNIEXPORT jboolean JNICALL
+Java_org_cef_browser_CefRequestContext_1N_N_1CanSetPreference(JNIEnv* env,
+                                                              jobject obj,
+                                                              jstring jname) {
+  CefRefPtr<CefRequestContext> context =
+      GetCefFromJNIObject<CefRequestContext>(env, obj, "CefRequestContext");
+  if (!context.get())
+    return JNI_FALSE;
+
+  CefString name = GetJNIString(env, jname);
+  return context->CanSetPreference(name) ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_cef_browser_CefRequestContext_1N_N_1SetPreference(JNIEnv* env,
+                                                           jobject obj,
+                                                           jstring jname,
+                                                           jobject jvalue) {
+  if (!CefCurrentlyOn(TID_UI))
+    return NewJNIString(env, "called on invalid thread");
+
+  CefRefPtr<CefRequestContext> context =
+      GetCefFromJNIObject<CefRequestContext>(env, obj, "CefRequestContext");
+  if (!context.get())
+    return NewJNIString(env, "no request context");
+
+  CefString name = GetJNIString(env, jname);
+  CefRefPtr<CefValue> value = GetCefValueFromJNIObject(env, jvalue);
+  if (!value)
+    return NewJNIString(env, "no value to set");
+
+  CefString error;
+  bool result = context->SetPreference(name, value, error);
+  if (!result)
+    return NewJNIString(env, error);
+
+  return nullptr;
+}
+
 JNIEXPORT void JNICALL
 Java_org_cef_browser_CefRequestContext_1N_N_1CefRequestContext_1DTOR(
     JNIEnv* env,
