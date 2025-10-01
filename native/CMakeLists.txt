@@ -292,8 +292,19 @@ if(OS_MAC)
   set(PRODUCT_NAME "${JCEF_APP_NAME}")
 
   if(USE_SANDBOX)
+    # CEF sandbox library paths for CEF 140+.
+    set(CEF_SANDBOX_LIB_DEBUG "${CEF_BINARY_DIR_DEBUG}/Chromium Embedded Framework.framework/Libraries/libcef_sandbox.dylib")
+    set(CEF_SANDBOX_LIB_RELEASE "${CEF_BINARY_DIR_RELEASE}/Chromium Embedded Framework.framework/Libraries/libcef_sandbox.dylib")
+    
     # Logical target used to link the cef_sandbox library.
     ADD_LOGICAL_TARGET("cef_sandbox_lib" "${CEF_SANDBOX_LIB_DEBUG}" "${CEF_SANDBOX_LIB_RELEASE}")
+    
+    # Set the correct install name and runtime path for the sandbox library
+    set_target_properties(cef_sandbox_lib PROPERTIES
+      IMPORTED_LOCATION_DEBUG "${CEF_SANDBOX_LIB_DEBUG}"
+      IMPORTED_LOCATION_RELEASE "${CEF_SANDBOX_LIB_RELEASE}"
+      IMPORTED_LOCATION "${CEF_SANDBOX_LIB_RELEASE}"
+    )
   endif()
 
   # JCEF library target.
@@ -383,6 +394,19 @@ if(OS_MAC)
               "${JCEF_APP}/Contents/Frameworks/${_helper_output_name}.app"
       VERBATIM
       )
+
+    # Fix the sandbox library path in the helper executable after copying
+    if(USE_SANDBOX)
+      add_custom_command(
+        TARGET ${JCEF_TARGET}
+        POST_BUILD
+        COMMAND install_name_tool
+                -change "./libcef_sandbox.dylib"
+                "@executable_path/../../../Chromium Embedded Framework.framework/Libraries/libcef_sandbox.dylib"
+                "${JCEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/MacOS/${_helper_output_name}"
+        VERBATIM
+        )
+    endif()
   endforeach()
 endif()
 
